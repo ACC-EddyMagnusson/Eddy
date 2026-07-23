@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- Apple Safari Web App Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="mA Scaler">
+  
+  <!-- Samsung Internet & Android Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f172a">
+  
+  <title>4-20mA Scaling Calculator</title>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-color: #38bdf8;
+      --water-color: #0284c7;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      /* Support notch and gesture bars on iOS & Samsung devices */
+      padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 20px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      margin: auto 0;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .header p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .app-layout {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .inputs-side {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Touch-friendly input styling for mobile */
+    input {
+      background-color: var(--bg-color);
+      border: 1.5px solid var(--border-color);
+      color: var(--text-main);
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      outline: none;
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .tank-container {
+      width: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .tank-wrapper {
+      position: relative;
+      width: 100%;
+      height: 230px;
+      background-color: var(--bg-color);
+      border: 2px solid var(--border-color);
+      border-top: none;
+      border-radius: 0 0 16px 16px;
+      overflow: hidden;
+    }
+
+    .water {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 50%;
+      background: linear-gradient(180deg, var(--accent-color), var(--water-color));
+      transition: height 0.2s ease-out;
+    }
+
+    .percentage-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+    }
+
+    .stats {
+      margin-top: 16px;
+      background-color: var(--bg-color);
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-around;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent-color);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>4-20mA Level Scaling</h1>
+      <p>Interactive Loop Calculator</p>
+    </div>
+
+    <div class="app-layout">
+      <div class="inputs-side">
+        <div class="input-group">
+          <label for="range">Max Range (mm)</label>
+          <input type="number" id="range" value="2000" inputmode="decimal" step="any" placeholder="2000">
+        </div>
+
+        <div class="input-group">
+          <label for="level">Current Level (mm)</label>
+          <input type="number" id="level" value="1000" inputmode="decimal" step="any" placeholder="1000">
+        </div>
+
+        <div class="input-group">
+          <label for="mA">Loop Current (mA)</label>
+          <input type="number" id="mA" value="12.00" inputmode="decimal" step="0.01" placeholder="12.00">
+        </div>
+      </div>
+
+      <div class="tank-container">
+        <div class="tank-wrapper">
+          <div class="water" id="water"></div>
+          <div class="percentage-text" id="percentText">50.0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-label">Span Range</div>
+        <div class="stat-value" id="spanVal">16.00 mA</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Tank Fill %</div>
+        <div class="stat-value" id="percentVal">50.0%</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const rangeInput = document.getElementById('range');
+    const levelInput = document.getElementById('level');
+    const maInput = document.getElementById('mA');
+    const waterEl = document.getElementById('water');
+    const percentText = document.getElementById('percentText');
+    const percentVal = document.getElementById('percentVal');
+
+    function updateFromLevel() {
+      const range = parseFloat(rangeInput.value) || 0;
+      const level = parseFloat(levelInput.value) || 0;
+
+      if (range > 0) {
+        const ma = 4 + (level / range) * 16;
+        maInput.value = ma.toFixed(2);
+      }
+      render();
+    }
+
+    function updateFromMA() {
+      const range = parseFloat(rangeInput.value) || 0;
+      const ma = parseFloat(maInput.value) || 4;
+
+      if (range > 0) {
+        const level = ((ma - 4) / 16) * range;
+        levelInput.value = level.toFixed(1);
+      }
+      render();
+    }
+
+    function render() {
+      const range = parseFloat(rangeInput.value) || 1;
+      const level = parseFloat(levelInput.value) || 0;
+
+      let pct = (level / range) * 100;
+      let displayPct = Math.max(0, Math.min(100, pct));
+
+      waterEl.style.height = displayPct + '%';
+      percentText.textContent = pct.toFixed(1) + '%';
+      percentVal.textContent = pct.toFixed(1) + '%';
+    }
+
+    levelInput.addEventListener('input', updateFromLevel);
+    rangeInput.addEventListener('input', updateFromLevel);
+    maInput.addEventListener('input', updateFromMA);
+
+    // Initial calculation render
+    render();
+  </script>
+</body>
+</html>
