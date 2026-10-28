@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Irrigation Usage & Cost Calculator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        ocean: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        teal: {
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-ocean-600 rounded-lg text-white">
+                    <i class="fa-solid fa-faucet-drip text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">HydroTracker</h1>
+                    <p class="text-xs text-slate-400">Irrigation & Cost Analytics</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button onclick="openSettingsModal()" class="px-3 py-1.5 text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition flex items-center space-x-2">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span class="hidden sm:inline">Tariff Settings</span>
+                </button>
+                <button onclick="exportDataCSV()" class="px-3 py-1.5 text-xs sm:text-sm bg-emerald-700 hover:bg-emerald-600 text-white rounded-md transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-file-csv"></i>
+                    <span class="hidden sm:inline">Export CSV</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- KPI & Tier Progress Summary Row -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- KPI 1: Cumulative Usage -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Volume</span>
+                    <span class="p-2 bg-ocean-50 text-ocean-600 rounded-lg"><i class="fa-solid fa-droplet"></i></span>
+                </div>
+                <div class="mt-3">
+                    <div class="text-2xl sm:text-3xl font-bold text-slate-900" id="kpiTotalKL">0.00 <span class="text-sm font-normal text-slate-500">kL</span></div>
+                    <div class="text-xs text-slate-500 mt-1" id="kpiTotalLiters">0 Liters</div>
+                </div>
+            </div>
+
+            <!-- KPI 2: Total Cost -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Cumulative Cost</span>
+                    <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-dollar-sign"></i></span>
+                </div>
+                <div class="mt-3">
+                    <div class="text-2xl sm:text-3xl font-bold text-slate-900" id="kpiTotalCost">$0.00</div>
+                    <div class="text-xs text-slate-500 mt-1" id="kpiAvgCostPerRun">Avg: $0.00 / session</div>
+                </div>
+            </div>
+
+            <!-- KPI 3: Active Zones Count -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Zones</span>
+                    <span class="p-2 bg-purple-50 text-purple-600 rounded-lg"><i class="fa-solid fa-layer-group"></i></span>
+                </div>
+                <div class="mt-3">
+                    <div class="text-2xl sm:text-3xl font-bold text-slate-900" id="kpiZoneCount">0</div>
+                    <div class="text-xs text-slate-500 mt-1" id="kpiAvgFlow">Avg Flow: 0 L/min</div>
+                </div>
+            </div>
+
+            <!-- KPI 4: Tier Allowance Status -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Tier Status</span>
+                    <span class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-chart-pie"></i></span>
+                </div>
+                <div class="mt-2">
+                    <div class="flex justify-between items-baseline mb-1">
+                        <span class="text-xs font-medium text-slate-700" id="kpiTierLabel">Tier 1 Progress</span>
+                        <span class="text-xs font-bold text-slate-900" id="kpiTierPercent">0%</span>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div id="tierProgressBar" class="bg-ocean-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1.5 flex justify-between" id="kpiTierSubtext">
+                        <span>0 kL</span>
+                        <span>Threshold: 225 kL</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Interactive Tabs & Work Area -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <!-- Tabs Navigation -->
+            <div class="border-b border-slate-200 bg-slate-50/50 px-4 sm:px-6 pt-3 flex space-x-4 sm:space-x-8 overflow-x-auto">
+                <button onclick="switchTab('single')" id="tabBtn-single" class="tab-btn pb-3 text-sm font-medium border-b-2 border-ocean-600 text-ocean-600 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>Quick Calculator</span>
+                </button>
+                <button onclick="switchTab('multi')" id="tabBtn-multi" class="tab-btn pb-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Multi-Zone Session</span>
+                </button>
+                <button onclick="switchTab('zones')" id="tabBtn-zones" class="tab-btn pb-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Manage Zones</span>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-6">
+                <!-- TAB 1: Single Zone Quick Calculator -->
+                <div id="tab-single" class="tab-content space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        <!-- Left Form -->
+                        <div class="lg:col-span-5 bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
+                            <h3 class="text-base font-semibold text-slate-900 border-b border-slate-200 pb-2 flex items-center space-x-2">
+                                <i class="fa-solid fa-stopwatch text-ocean-600"></i>
+                                <span>Single Irrigation Run</span>
+                            </h3>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Select Irrigation Zone</label>
+                                <select id="singleZoneSelect" onchange="calculateSingleRun()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500 focus:outline-none">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Duration (Minutes)</label>
+                                <input type="number" id="singleDuration" min="1" value="30" oninput="calculateSingleRun()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500 focus:outline-none" placeholder="e.g. 30">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Session Date</label>
+                                <input type="date" id="singleDate" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500 focus:outline-none">
+                            </div>
+
+                            <button onclick="logSingleRun()" class="w-full py-2.5 bg-ocean-600 hover:bg-ocean-700 text-white font-medium rounded-lg shadow-sm transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-plus-circle"></i>
+                                <span>Log Session to History</span>
+                            </button>
+                        </div>
+
+                        <!-- Right Output Cards -->
+                        <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="bg-ocean-50/50 rounded-xl p-5 border border-ocean-100 flex flex-col justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold text-ocean-700 uppercase tracking-wider">Water Consumption</span>
+                                    <div class="mt-2 text-3xl font-extrabold text-ocean-900" id="singleResLiters">0 L</div>
+                                    <div class="text-sm text-ocean-600 font-medium mt-1" id="singleResKL">0.00 kL</div>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-ocean-200/60 text-xs text-ocean-700">
+                                    Flow Rate: <span id="singleResFlowRate" class="font-bold">0 L/min</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-emerald-50/50 rounded-xl p-5 border border-emerald-100 flex flex-col justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Estimated Cost</span>
+                                    <div class="mt-2 text-3xl font-extrabold text-emerald-900" id="singleResCost">$0.00</div>
+                                    <div class="text-xs text-emerald-700 mt-1" id="singleResCostBreakdown">Based on active tier pricing</div>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-emerald-200/60 text-xs text-emerald-700">
+                                    Effective Rate: <span id="singleResEffectiveRate" class="font-bold">$1.76 / kL</span>
+                                </div>
+                            </div>
+
+                            <!-- Context Banner -->
+                            <div class="sm:col-span-2 bg-slate-50 rounded-lg p-4 border border-slate-200 text-xs text-slate-600 space-y-1">
+                                <div class="font-semibold text-slate-800 flex items-center space-x-1">
+                                    <i class="fa-solid fa-circle-info text-ocean-600"></i>
+                                    <span>Calculation Note</span>
+                                </div>
+                                <p>Single run calculations take into account your current cumulative usage. If a single run crosses the <strong id="singleNoteThreshold">225 kL</strong> threshold, the cost split between Tier 1 and Tier 2 rates is calculated automatically.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Multi-Zone Run Session -->
+                <div id="tab-multi" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-200">
+                        <div>
+                            <h3 class="text-base font-semibold text-slate-900">Multi-Zone Watering Program</h3>
+                            <p class="text-xs text-slate-500">Set run times for individual zones to plan a comprehensive irrigation cycle.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="text-xs font-semibold text-slate-600">Date:</label>
+                            <input type="date" id="multiDate" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs focus:ring-2 focus:ring-ocean-500">
+                        </div>
+                    </div>
+
+                    <!-- Multi-Zone Inputs Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="py-3 px-4">Zone Name</th>
+                                    <th class="py-3 px-4">Flow Rate</th>
+                                    <th class="py-3 px-4">Run Time (Mins)</th>
+                                    <th class="py-3 px-4">Calculated Usage</th>
+                                    <th class="py-3 px-4 text-right">Est. Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody id="multiZoneTableBody" class="divide-y divide-slate-100">
+                                <!-- Dynamically populated rows -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Multi-zone Session Totals Header / Footer -->
+                    <div class="bg-slate-900 text-white rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="space-y-1 text-center md:text-left">
+                            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total Session Overview</span>
+                            <div class="flex items-center space-x-4">
+                                <div>
+                                    <span class="text-2xl font-bold text-white" id="multiTotalLiters">0 L</span>
+                                    <span class="text-xs text-slate-400 block" id="multiTotalKL">(0.00 kL)</span>
+                                </div>
+                                <div class="h-8 border-r border-slate-700"></div>
+                                <div>
+                                    <span class="text-2xl font-bold text-emerald-400" id="multiTotalCost">$0.00</span>
+                                    <span class="text-xs text-slate-400 block">Estimated Cost</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3 w-full md:w-auto">
+                            <button onclick="resetMultiInputs()" class="flex-1 md:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-medium rounded-lg transition">
+                                Reset Inputs
+                            </button>
+                            <button onclick="logMultiRun()" class="flex-1 md:flex-none px-5 py-2 bg-ocean-600 hover:bg-ocean-500 text-white text-xs sm:text-sm font-medium rounded-lg shadow-sm transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Log Full Session</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: Zone Management -->
+                <div id="tab-zones" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 class="text-base font-semibold text-slate-900">Irrigation Zones Setup</h3>
+                            <p class="text-xs text-slate-500">Configure flow rates (L/min) based on your system's output tests or emitter ratings.</p>
+                        </div>
+                        <button onclick="openAddZoneModal()" class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white text-xs sm:text-sm font-medium rounded-lg transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Add New Zone</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="zonesCardGrid">
+                        <!-- Zone cards injected dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts & Historical Analytics Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Usage Over Time Chart -->
+            <div class="lg:col-span-8 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-column text-ocean-600"></i>
+                        <span>Water Usage Trend (kL)</span>
+                    </h3>
+                    <span class="text-xs text-slate-400">Logged Sessions</span>
+                </div>
+                <div class="h-64 relative w-full">
+                    <canvas id="usageTimeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Usage Breakdown by Zone Chart -->
+            <div class="lg:col-span-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-pie text-teal-600"></i>
+                        <span>Zone Distribution</span>
+                    </h3>
+                    <span class="text-xs text-slate-400">By Volume</span>
+                </div>
+                <div class="h-64 relative w-full flex items-center justify-center">
+                    <canvas id="zoneBreakdownChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cumulative Usage Log Table -->
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-clock-rotate-left text-slate-600"></i>
+                        <span>Irrigation Log & History</span>
+                    </h3>
+                    <p class="text-xs text-slate-500">Historical records contributing to cumulative water and tariff calculations.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="clearHistory()" class="px-3 py-1.5 text-xs bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg border border-red-200 transition flex items-center space-x-1">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>Clear History</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-4">Date</th>
+                            <th class="py-3 px-4">Zone(s)</th>
+                            <th class="py-3 px-4">Duration</th>
+                            <th class="py-3 px-4">Volume (L)</th>
+                            <th class="py-3 px-4">Volume (kL)</th>
+                            <th class="py-3 px-4">Cost ($)</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-100">
+                        <!-- History rows injected dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="emptyHistoryMsg" class="p-8 text-center text-slate-400 text-sm hidden">
+                <i class="fa-solid fa-droplet-slash text-3xl mb-2 text-slate-300"></i>
+                <p>No logged irrigation sessions found. Use the quick calculator above to add your first entry.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-1">
+            <p>HydroTracker Irrigation Usage & Cost Calculator &copy; 2026</p>
+            <p class="text-slate-500">Tiered rate calculations are based on customizable water authority tariff structures.</p>
+        </div>
+    </footer>
+
+    <!-- MODAL 1: Tariff & Settings -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="px-5 py-4 bg-slate-900 text-white flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center space-x-2">
+                    <i class="fa-solid fa-sliders text-ocean-400"></i>
+                    <span>Tariff & Threshold Settings</span>
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tier 1 Threshold Limit (kL)</label>
+                    <input type="number" id="settingThreshold" step="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500">
+                    <span class="text-[11px] text-slate-500">Usage up to this volume is charged at Tier 1 rate.</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tier 1 Rate ($ / kL)</label>
+                    <input type="number" id="settingTier1Rate" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tier 2 Rate ($ / kL)</label>
+                    <input type="number" id="settingTier2Rate" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500">
+                    <span class="text-[11px] text-slate-500">Usage exceeding threshold limit is charged at Tier 2 rate.</span>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+                <button onclick="saveSettings()" class="px-4 py-2 text-xs font-medium bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg shadow-sm">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Add/Edit Zone -->
+    <div id="zoneModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="px-5 py-4 bg-slate-900 text-white flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center space-x-2" id="zoneModalTitle">
+                    <i class="fa-solid fa-layer-group text-ocean-400"></i>
+                    <span>Add New Irrigation Zone</span>
+                </h3>
+                <button onclick="closeZoneModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="zoneEditId" value="">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Zone Name</label>
+                    <input type="text" id="zoneInputName" placeholder="e.g. Lawn Sprinklers" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Flow Rate (L/min)</label>
+                    <input type="number" id="zoneInputRate" step="0.05" min="0.1" placeholder="e.g. 2.5" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ocean-500">
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+                <button onclick="closeZoneModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+                <button onclick="saveZone()" class="px-4 py-2 text-xs font-medium bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg shadow-sm">Save Zone</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // --- DEFAULT STATE ---
+        const DEFAULT_ZONES = [
+            { id: 'z1', name: 'Photinias', flowRate: 1.35 },
+            { id: 'z2', name: 'Front Main', flowRate: 4.30 },
+            { id: 'z3', name: 'Back Primary', flowRate: 1.30 },
+            { id: 'z4', name: 'Back Secondary', flowRate: 1.20 }
+        ];
+
+        const DEFAULT_SETTINGS = {
+            threshold: 225, // kL
+            tier1Rate: 1.76, // $/kL
+            tier2Rate: 2.99  // $/kL
+        };
+
+        let zones = [];
+        let settings = {};
+        let historyLogs = [];
+
+        // Chart Instances
+        let usageTimeChartInstance = null;
+        let zoneBreakdownChartInstance = null;
+
+        // Initialization
+        window.onload = function() {
+            loadState();
+            setDefaultDates();
+            renderZones();
+            populateSingleZoneSelect();
+            renderMultiZoneTable();
+            recalculateAll();
+            initCharts();
+        };
+
+        // --- STORAGE & STATE MANAGEMENT ---
+        function loadState() {
+            const storedZones = localStorage.getItem('hydro_zones');
+            zones = storedZones ? JSON.parse(storedZones) : [...DEFAULT_ZONES];
+
+            const storedSettings = localStorage.getItem('hydro_settings');
+            settings = storedSettings ? JSON.parse(storedSettings) : { ...DEFAULT_SETTINGS };
+
+            const storedHistory = localStorage.getItem('hydro_history');
+            historyLogs = storedHistory ? JSON.parse(storedHistory) : [];
+        }
+
+        function saveState() {
+            localStorage.setItem('hydro_zones', JSON.stringify(zones));
+            localStorage.setItem('hydro_settings', JSON.stringify(settings));
+            localStorage.setItem('hydro_history', JSON.stringify(historyLogs));
+        }
+
+        function setDefaultDates() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('singleDate').value = today;
+            document.getElementById('multiDate').value = today;
+        }
+
+        // --- TIERED COST CALCULATOR CORE ENGINE ---
+        /**
+         * Calculates cost based on tiered threshold logic
+         * @param {number} addedKL Volume to add in kL
+         * @param {number} currentCumulativeKL Baseline cumulative kL prior to addition
+         */
+        function computeTieredCost(addedKL, currentCumulativeKL) {
+            const threshold = settings.threshold;
+            const t1 = settings.tier1Rate;
+            const t2 = settings.tier2Rate;
+
+            const startKL = currentCumulativeKL;
+            const endKL = currentCumulativeKL + addedKL;
+
+            let cost = 0;
+
+            if (endKL <= threshold) {
+                // Entirely within Tier 1
+                cost = addedKL * t1;
+            } else if (startKL >= threshold) {
+                // Entirely within Tier 2
+                cost = addedKL * t2;
+            } else {
+                // Straddles Tier 1 and Tier 2
+                const t1Volume = threshold - startKL;
+                const t2Volume = endKL - threshold;
+                cost = (t1Volume * t1) + (t2Volume * t2);
+            }
+
+            return cost;
+        }
+
+        // --- MASTER RECALCULATION & RENDER ---
+        function recalculateAll() {
+            // Sort history by date ascending for accurate cumulative tracking
+            historyLogs.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Re-compute cumulative metrics sequentially
+            let runningKL = 0;
+            let totalCost = 0;
+
+            historyLogs.forEach(log => {
+                const logKL = log.liters / 1000;
+                log.cost = computeTieredCost(logKL, runningKL);
+                runningKL += logKL;
+                totalCost += log.cost;
+            });
+
+            const totalLiters = runningKL * 1000;
+
+            // Update KPIs
+            document.getElementById('kpiTotalKL').innerHTML = `${runningKL.toFixed(2)} <span class="text-sm font-normal text-slate-500">kL</span>`;
+            document.getElementById('kpiTotalLiters').textContent = `${totalLiters.toLocaleString()} Liters`;
+            document.getElementById('kpiTotalCost').textContent = `$${totalCost.toFixed(2)}`;
+
+            const avgCost = historyLogs.length > 0 ? (totalCost / historyLogs.length) : 0;
+            document.getElementById('kpiAvgCostPerRun').textContent = `Avg: $${avgCost.toFixed(2)} / session`;
+
+            document.getElementById('kpiZoneCount').textContent = zones.length;
+            const avgFlow = zones.length > 0 ? (zones.reduce((s, z) => s + z.flowRate, 0) / zones.length) : 0;
+            document.getElementById('kpiAvgFlow').textContent = `Avg Flow: ${avgFlow.toFixed(2)} L/min`;
+
+            // Tier Progress Bar Update
+            const tierPercent = Math.min(100, Math.round((runningKL / settings.threshold) * 100));
+            document.getElementById('tierProgressBar').style.width = `${tierPercent}%`;
+            document.getElementById('kpiTierPercent').textContent = `${tierPercent}%`;
+            document.getElementById('kpiTierSubtext').innerHTML = `
+                <span>${runningKL.toFixed(1)} kL logged</span>
+                <span>Threshold: ${settings.threshold} kL</span>
+            `;
+
+            if (runningKL > settings.threshold) {
+                document.getElementById('kpiTierLabel').textContent = 'Tier 2 Active';
+                document.getElementById('tierProgressBar').className = 'bg-amber-500 h-2.5 rounded-full transition-all duration-500';
+            } else {
+                document.getElementById('kpiTierLabel').textContent = 'Tier 1 Progress';
+                document.getElementById('tierProgressBar').className = 'bg-ocean-600 h-2.5 rounded-full transition-all duration-500';
+            }
+
+            document.getElementById('singleNoteThreshold').textContent = `${settings.threshold} kL`;
+
+            // Render updated table and charts
+            renderHistoryTable();
+            calculateSingleRun();
+            updateCharts();
+            saveState();
+        }
+
+        // --- SINGLE RUN CALCULATOR LOGIC ---
+        function populateSingleZoneSelect() {
+            const select = document.getElementById('singleZoneSelect');
+            select.innerHTML = zones.map(z => `<option value="${z.id}">${z.name} (${z.flowRate} L/min)</option>`).join('');
+        }
+
+        function calculateSingleRun() {
+            const zoneId = document.getElementById('singleZoneSelect').value;
+            const duration = parseFloat(document.getElementById('singleDuration').value) || 0;
+            const zone = zones.find(z => z.id === zoneId);
+
+            if (!zone) return;
+
+            const liters = duration * zone.flowRate;
+            const kl = liters / 1000;
+
+            // Get current baseline cumulative KL
+            const currentCumKL = historyLogs.reduce((acc, item) => acc + (item.liters / 1000), 0);
+            const cost = computeTieredCost(kl, currentCumKL);
+
+            document.getElementById('singleResLiters').textContent = `${liters.toLocaleString(undefined, {maximumFractionDigits:1})} L`;
+            document.getElementById('singleResKL').textContent = `${kl.toFixed(3)} kL`;
+            document.getElementById('singleResCost').textContent = `$${cost.toFixed(2)}`;
+            document.getElementById('singleResFlowRate').textContent = `${zone.flowRate} L/min`;
+
+            const effectiveRate = kl > 0 ? (cost / kl) : settings.tier1Rate;
+            document.getElementById('singleResEffectiveRate').textContent = `$${effectiveRate.toFixed(2)} / kL`;
+        }
+
+        function logSingleRun() {
+            const zoneId = document.getElementById('singleZoneSelect').value;
+            const duration = parseFloat(document.getElementById('singleDuration').value);
+            const date = document.getElementById('singleDate').value;
+            const zone = zones.find(z => z.id === zoneId);
+
+            if (!zone || !duration || duration <= 0 || !date) {
+                alert('Please enter a valid duration and date.');
+                return;
+            }
+
+            const liters = duration * zone.flowRate;
+
+            historyLogs.push({
+                id: Date.now().toString(),
+                date: date,
+                zonesSummary: zone.name,
+                duration: `${duration} mins`,
+                liters: liters,
+                zoneIds: [zone.id]
+            });
+
+            recalculateAll();
+        }
+
+        // --- MULTI-ZONE SESSION LOGIC ---
+        function renderMultiZoneTable() {
+            const tbody = document.getElementById('multiZoneTableBody');
+            tbody.innerHTML = zones.map(z => `
+                <tr class="hover:bg-slate-50/80 transition">
+                    <td class="py-3 px-4 font-medium text-slate-800">${z.name}</td>
+                    <td class="py-3 px-4 text-slate-500">${z.flowRate} L/min</td>
+                    <td class="py-3 px-4">
+                        <input type="number" min="0" value="0" data-zone-id="${z.id}" oninput="calculateMultiRun()" class="multi-duration-input w-24 bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-ocean-500">
+                    </td>
+                    <td class="py-3 px-4 text-slate-700 font-mono" id="multiUsage-${z.id}">0 L</td>
+                    <td class="py-3 px-4 text-right font-medium text-slate-800 font-mono" id="multiCost-${z.id}">$0.00</td>
+                </tr>
+            `).join('');
+
+            calculateMultiRun();
+        }
+
+        function calculateMultiRun() {
+            const inputs = document.querySelectorAll('.multi-duration-input');
+            let totalLiters = 0;
+            let currentCumKL = historyLogs.reduce((acc, item) => acc + (item.liters / 1000), 0);
+
+            inputs.forEach(input => {
+                const zoneId = input.getAttribute('data-zone-id');
+                const duration = parseFloat(input.value) || 0;
+                const zone = zones.find(z => z.id === zoneId);
+
+                if (zone) {
+                    const liters = duration * zone.flowRate;
+                    const kl = liters / 1000;
+                    const cost = computeTieredCost(kl, currentCumKL);
+
+                    document.getElementById(`multiUsage-${zoneId}`).textContent = `${liters.toFixed(0)} L`;
+                    document.getElementById(`multiCost-${zoneId}`).textContent = `$${cost.toFixed(2)}`;
+
+                    totalLiters += liters;
+                }
+            });
+
+            const totalKL = totalLiters / 1000;
+            const totalCost = computeTieredCost(totalKL, currentCumKL);
+
+            document.getElementById('multiTotalLiters').textContent = `${totalLiters.toLocaleString()} L`;
+            document.getElementById('multiTotalKL').textContent = `(${totalKL.toFixed(3)} kL)`;
+            document.getElementById('multiTotalCost').textContent = `$${totalCost.toFixed(2)}`;
+        }
+
+        function resetMultiInputs() {
+            document.querySelectorAll('.multi-duration-input').forEach(i => i.value = 0);
+            calculateMultiRun();
+        }
+
+        function logMultiRun() {
+            const inputs = document.querySelectorAll('.multi-duration-input');
+            const date = document.getElementById('multiDate').value;
+            let totalLiters = 0;
+            let activeZones = [];
+            let totalDurationMins = 0;
+
+            inputs.forEach(input => {
+                const duration = parseFloat(input.value) || 0;
+                if (duration > 0) {
+                    const zoneId = input.getAttribute('data-zone-id');
+                    const zone = zones.find(z => z.id === zoneId);
+                    if (zone) {
+                        totalLiters += duration * zone.flowRate;
+                        activeZones.push(zone.name);
+                        totalDurationMins += duration;
+                    }
+                }
+            });
+
+            if (totalLiters === 0 || !date) {
+                alert('Please enter run times for at least one zone and select a date.');
+                return;
+            }
+
+            const summary = activeZones.length === 1 ? activeZones[0] : `${activeZones.length} Zones (${activeZones.join(', ')})`;
+
+            historyLogs.push({
+                id: Date.now().toString(),
+                date: date,
+                zonesSummary: summary,
+                duration: `${totalDurationMins} mins total`,
+                liters: totalLiters
+            });
+
+            resetMultiInputs();
+            recalculateAll();
+        }
+
+        // --- ZONE MANAGEMENT LOGIC ---
+        function renderZones() {
+            const grid = document.getElementById('zonesCardGrid');
+            grid.innerHTML = zones.map(z => `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-base">${z.name}</h4>
+                            <div class="text-xs text-slate-500 mt-0.5">Flow Rate</div>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="openEditZoneModal('${z.id}')" class="p-1.5 text-slate-400 hover:text-ocean-600 rounded"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteZone('${z.id}')" class="p-1.5 text-slate-400 hover:text-red-600 rounded"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </div>
+                    <div class="text-2xl font-extrabold text-ocean-700">${z.flowRate} <span class="text-xs font-normal text-slate-500">L/min</span></div>
+                </div>
+            `).join('');
+        }
+
+        function openAddZoneModal() {
+            document.getElementById('zoneModalTitle').textContent = 'Add New Irrigation Zone';
+            document.getElementById('zoneEditId').value = '';
+            document.getElementById('zoneInputName').value = '';
+            document.getElementById('zoneInputRate').value = '';
+            document.getElementById('zoneModal').classList.remove('hidden');
+        }
+
+        function openEditZoneModal(id) {
+            const zone = zones.find(z => z.id === id);
+            if (!zone) return;
+            document.getElementById('zoneModalTitle').textContent = 'Edit Irrigation Zone';
+            document.getElementById('zoneEditId').value = zone.id;
+            document.getElementById('zoneInputName').value = zone.name;
+            document.getElementById('zoneInputRate').value = zone.flowRate;
+            document.getElementById('zoneModal').classList.remove('hidden');
+        }
+
+        function closeZoneModal() {
+            document.getElementById('zoneModal').classList.add('hidden');
+        }
+
+        function saveZone() {
+            const id = document.getElementById('zoneEditId').value;
+            const name = document.getElementById('zoneInputName').value.trim();
+            const rate = parseFloat(document.getElementById('zoneInputRate').value);
+
+            if (!name || isNaN(rate) || rate <= 0) {
+                alert('Please enter a valid name and flow rate.');
+                return;
+            }
+
+            if (id) {
+                // Edit existing
+                const zone = zones.find(z => z.id === id);
+                if (zone) {
+                    zone.name = name;
+                    zone.flowRate = rate;
+                }
+            } else {
+                // Add new
+                zones.push({
+                    id: 'z_' + Date.now(),
+                    name: name,
+                    flowRate: rate
+                });
+            }
+
+            closeZoneModal();
+            renderZones();
+            populateSingleZoneSelect();
+            renderMultiZoneTable();
+            recalculateAll();
+        }
+
+        function deleteZone(id) {
+            if (zones.length <= 1) {
+                alert('You must keep at least one irrigation zone.');
+                return;
+            }
+            if (confirm('Are you sure you want to delete this zone?')) {
+                zones = zones.filter(z => z.id !== id);
+                renderZones();
+                populateSingleZoneSelect();
+                renderMultiZoneTable();
+                recalculateAll();
+            }
+        }
+
+        // --- HISTORY TABLE & LOGS ---
+        function renderHistoryTable() {
+            const tbody = document.getElementById('historyTableBody');
+            const emptyMsg = document.getElementById('emptyHistoryMsg');
+
+            if (historyLogs.length === 0) {
+                tbody.innerHTML = '';
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+
+            emptyMsg.classList.add('hidden');
+            tbody.innerHTML = historyLogs.map(log => {
+                const kl = log.liters / 1000;
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-3 px-4 font-medium text-slate-800">${log.date}</td>
+                        <td class="py-3 px-4 text-slate-700">${log.zonesSummary}</td>
+                        <td class="py-3 px-4 text-slate-500">${log.duration}</td>
+                        <td class="py-3 px-4 font-mono text-slate-700">${log.liters.toLocaleString(undefined, {maximumFractionDigits:1})} L</td>
+                        <td class="py-3 px-4 font-mono text-slate-700">${kl.toFixed(3)} kL</td>
+                        <td class="py-3 px-4 font-medium text-emerald-600 font-mono">$${log.cost.toFixed(2)}</td>
+                        <td class="py-3 px-4 text-right">
+                            <button onclick="deleteHistoryLog('${log.id}')" class="text-slate-400 hover:text-red-600 text-xs transition px-2 py-1"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function deleteHistoryLog(id) {
+            historyLogs = historyLogs.filter(h => h.id !== id);
+            recalculateAll();
+        }
+
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all history logs? This action cannot be undone.')) {
+                historyLogs = [];
+                recalculateAll();
+            }
+        }
+
+        // --- TARIFF SETTINGS MODAL ---
+        function openSettingsModal() {
+            document.getElementById('settingThreshold').value = settings.threshold;
+            document.getElementById('settingTier1Rate').value = settings.tier1Rate;
+            document.getElementById('settingTier2Rate').value = settings.tier2Rate;
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const th = parseFloat(document.getElementById('settingThreshold').value);
+            const t1 = parseFloat(document.getElementById('settingTier1Rate').value);
+            const t2 = parseFloat(document.getElementById('settingTier2Rate').value);
+
+            if (isNaN(th) || isNaN(t1) || isNaN(t2)) {
+                alert('Please enter valid numeric settings.');
+                return;
+            }
+
+            settings.threshold = th;
+            settings.tier1Rate = t1;
+            settings.tier2Rate = t2;
+
+            closeSettingsModal();
+            recalculateAll();
+        }
+
+        // --- EXPORT TO CSV ---
+        function exportDataCSV() {
+            if (historyLogs.length === 0) {
+                alert('No history logs available to export.');
+                return;
+            }
+
+            let csv = 'Date,Zone Summary,Duration,Volume (Liters),Volume (kL),Cost ($)\n';
+            historyLogs.forEach(log => {
+                const kl = log.liters / 1000;
+                csv += `"${log.date}","${log.zonesSummary.replace(/"/g, '""')}","${log.duration}",${log.liters.toFixed(1)},${kl.toFixed(3)},${log.cost.toFixed(2)}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `irrigation_usage_export_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- TAB SWITCHING ---
+        function switchTab(tabKey) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('border-ocean-600', 'text-ocean-600');
+                b.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            document.getElementById(`tab-${tabKey}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tabBtn-${tabKey}`);
+            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+            activeBtn.classList.add('border-ocean-600', 'text-ocean-600');
+        }
+
+        // --- CHART VISUALIZATIONS ---
+        function initCharts() {
+            const usageCtx = document.getElementById('usageTimeChart').getContext('2d');
+            usageTimeChartInstance = new Chart(usageCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Volume (kL)',
+                        data: [],
+                        backgroundColor: '#0ea5e9',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'kL' } }
+                    }
+                }
+            });
+
+            const zoneCtx = document.getElementById('zoneBreakdownChart').getContext('2d');
+            zoneBreakdownChartInstance = new Chart(zoneCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: ['#0ea5e9', '#14b8a6', '#8b5cf6', '#f59e0b', '#ec4899', '#6366f1']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (!usageTimeChartInstance || !zoneBreakdownChartInstance) return;
+
+            // Update Time Chart
+            const dates = historyLogs.map(h => h.date);
+            const volumes = historyLogs.map(h => (h.liters / 1000));
+
+            usageTimeChartInstance.data.labels = dates;
+            usageTimeChartInstance.data.datasets[0].data = volumes;
+            usageTimeChartInstance.update();
+
+            // Update Zone Breakdown Chart
+            const zoneTotals = {};
+            zones.forEach(z => zoneTotals[z.name] = 0);
+
+            historyLogs.forEach(h => {
+                // If it matched a zone name directly
+                if (zoneTotals.hasOwnProperty(h.zonesSummary)) {
+                    zoneTotals[h.zonesSummary] += h.liters;
+                } else {
+                    // For multi-zone, distribute evenly or under 'Multi-Zone'
+                    zoneTotals['Multi-Zone Session'] = (zoneTotals['Multi-Zone Session'] || 0) + h.liters;
+                }
+            });
+
+            const labels = Object.keys(zoneTotals).filter(k => zoneTotals[k] > 0);
+            const data = labels.map(k => (zoneTotals[k] / 1000));
+
+            zoneBreakdownChartInstance.data.labels = labels;
+            zoneBreakdownChartInstance.data.datasets[0].data = data;
+            zoneBreakdownChartInstance.update();
+        }
+    </script>
+</body>
+</html>
